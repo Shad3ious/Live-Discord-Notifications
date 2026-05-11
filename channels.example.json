@@ -1,0 +1,12 @@
+[
+  {
+    "Name": "Example Server With Role Ping",
+    "WebhookUrl": "https://discord.com/api/webhooks/000000000000000000/replace_with_your_real_webhook_token",
+    "RoleId": "1234567890123456789"
+  },
+  {
+    "Name": "Example Server No Role Ping",
+    "WebhookUrl": "https://discord.com/api/webhooks/000000000000000000/replace_with_your_real_webhook_token",
+    "RoleId": ""
+  }
+]

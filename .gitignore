@@ -1,0 +1,18 @@
+# Configuration (contains encrypted webhook URLs - never share)
+channels.json
+channels.json.tmp
+
+# Temp files
+*.tmp
+*.log
+
+# IDE / Editor
+.vs/
+.vscode/
+*.suo
+*.user
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
