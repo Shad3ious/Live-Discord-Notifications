@@ -18,17 +18,9 @@ try {
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
-# -------------------------------------------------------------------
-# FIRST-TIME SETUP: Replace YOUR_USERNAME below with your actual handle
-# on each platform. Remove any lines for platforms you do not use.
-# -------------------------------------------------------------------
-$linksBlock = @"
-Watch From:
-[Twitch](<https://www.twitch.tv/YOUR_USERNAME>)
-[YouTube](<https://www.youtube.com/@YOUR_USERNAME>)
-[Kick](<https://kick.com/YOUR_USERNAME>)
-[TikTok](<https://www.tiktok.com/@YOUR_USERNAME/live>)
-"@
+
+# Links are managed via the Links button below and stored in links.json.
+# We load them once just before sending so the most recent edits are picked up.
 
 # ===================================================================
 #  Channels management window
@@ -405,7 +397,7 @@ $chanXaml = @"
         $displayName = if ($name) { "'$name'" } else { "the webhook" }
 
         if ($withRole) {
-            $testBody     = "<@&$roleId>`nTest message from Live Discord Notifications by Shad3ious. Webhook and role ping worked."
+            $testBody     = "<@&$roleId>`nTest message from Live Discord Notifications by Shad3ious. Webhook and role ping work."
             $allowedRoles = @($roleId)
         } else {
             $testBody     = "Test message from Live Discord Notifications by Shad3ious. Webhook works."
@@ -486,6 +478,324 @@ $chanXaml = @"
 }
 
 # ===================================================================
+#  Links management window
+# ===================================================================
+
+function Show-LinksWindow {
+
+$linksXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manage Links - Live Discord Notifications by Shad3ious"
+        Height="700" Width="600"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#1e1e1e"
+        Topmost="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#cccccc"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#2d2d2d"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#444444"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="#2d2d2d"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#444444"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Header text (optional):" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox   Grid.Column="1" x:Name="txtHeader"/>
+        </Grid>
+
+        <TextBlock Grid.Row="1" Text="Add new Link:" FontWeight="Bold" Margin="0,0,0,6"/>
+
+        <Grid Grid.Row="2" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Display Text:" VerticalAlignment="Center" Margin="0,4,8,4"/>
+            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtLinkText" Margin="0,4,0,4"/>
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="URL:"          VerticalAlignment="Center" Margin="0,4,8,4"/>
+            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtLinkUrl"  Margin="0,4,0,4"/>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,14">
+            <Button x:Name="btnAddLink"        Content="Add Link"   Width="120" Background="#5865F2"/>
+            <Button x:Name="btnClearLinkForm"  Content="Clear Form" Width="100" Background="#3a3a3a" Margin="10,0,0,0"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="4" Text="Configured Links:" FontWeight="Bold" Margin="0,0,0,6"/>
+        <ListBox   Grid.Row="5" x:Name="lstLinks" Height="140" Margin="0,0,0,6"/>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0,0,14" VerticalAlignment="Top">
+            <Button x:Name="btnMoveUp"   Content="Move Up"   Width="90" Background="#3a3a3a"/>
+            <Button x:Name="btnMoveDown" Content="Move Down" Width="90" Background="#3a3a3a" Margin="8,0,0,0"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="7" Text="Preview:" FontWeight="Bold" Margin="0,0,0,4"/>
+        <Border Grid.Row="8" BorderBrush="#444" BorderThickness="1" Padding="10" Margin="0,0,0,14" Background="#252525">
+            <TextBlock x:Name="txtPreview" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Foreground="#bbbbbb"/>
+        </Border>
+
+        <Grid Grid.Row="9">
+            <Button x:Name="btnBackLinks"   Content="Back"   Width="80" HorizontalAlignment="Left"  Background="#3a3a3a"/>
+            <Button x:Name="btnDeleteLink"  Content="Delete" Width="80" HorizontalAlignment="Right" Background="#a33a3a"/>
+        </Grid>
+    </Grid>
+</Window>
+"@
+
+    $linksReader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$linksXaml)
+    $script:linksWin = [System.Windows.Markup.XamlReader]::Load($linksReader)
+
+    $script:txtHeader        = $script:linksWin.FindName("txtHeader")
+    $script:txtLinkText      = $script:linksWin.FindName("txtLinkText")
+    $script:txtLinkUrl       = $script:linksWin.FindName("txtLinkUrl")
+    $script:btnAddLink       = $script:linksWin.FindName("btnAddLink")
+    $script:btnClearLinkForm = $script:linksWin.FindName("btnClearLinkForm")
+    $script:lstLinks         = $script:linksWin.FindName("lstLinks")
+    $script:btnMoveUp        = $script:linksWin.FindName("btnMoveUp")
+    $script:btnMoveDown      = $script:linksWin.FindName("btnMoveDown")
+    $script:txtPreview       = $script:linksWin.FindName("txtPreview")
+    $script:btnBackLinks     = $script:linksWin.FindName("btnBackLinks")
+    $script:btnDeleteLink    = $script:linksWin.FindName("btnDeleteLink")
+
+    # Edit state: -1 = Add mode, >=0 = Update mode (index of link being edited)
+    $script:editingLinkIndex = -1
+
+    # Working copy held in memory so reorders and preview do not require disk I/O.
+    $loaded = Get-Links
+    $script:txtHeader.Text = if ($loaded.Header) { [string]$loaded.Header } else { "" }
+    $script:workingLinks   = @()
+    foreach ($l in @($loaded.Links)) {
+        $script:workingLinks += [PSCustomObject]@{ Text = [string]$l.Text; Url = [string]$l.Url }
+    }
+
+    $script:saveWorkingLinks = {
+        try {
+            $obj = [PSCustomObject]@{
+                Header = $script:txtHeader.Text
+                Links  = @($script:workingLinks)
+            }
+            Save-Links -LinksObject $obj
+        } catch {
+            [System.Windows.MessageBox]::Show(
+                $_.Exception.Message,
+                "Save Failed",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Error) | Out-Null
+        }
+    }
+
+    $script:refreshPreview = {
+        $obj = [PSCustomObject]@{
+            Header = $script:txtHeader.Text
+            Links  = @($script:workingLinks)
+        }
+        $rendered = Format-LinksBlock $obj
+        if (-not $rendered) {
+            $script:txtPreview.Text = "(No links configured. Add some above.)"
+        } else {
+            $script:txtPreview.Text = $rendered
+        }
+    }
+
+    $script:refreshLinksList = {
+        $script:lstLinks.Items.Clear()
+        for ($i = 0; $i -lt $script:workingLinks.Count; $i++) {
+            $l = $script:workingLinks[$i]
+            $script:lstLinks.Items.Add("$($l.Text)  ->  $($l.Url)") | Out-Null
+        }
+        & $script:refreshPreview
+    }
+
+    $script:clearLinkForm = {
+        $script:txtLinkText.Text  = ""
+        $script:txtLinkUrl.Text   = ""
+        $script:editingLinkIndex  = -1
+        $script:btnAddLink.Content = "Add Link"
+        $script:lstLinks.SelectedIndex = -1
+    }
+
+    & $script:refreshLinksList
+
+    # Live preview as the header is edited.
+    $script:txtHeader.Add_TextChanged({ & $script:refreshPreview })
+
+    $script:lstLinks.Add_SelectionChanged({
+        $idx = $script:lstLinks.SelectedIndex
+        if ($idx -lt 0 -or $idx -ge $script:workingLinks.Count) { return }
+        $l = $script:workingLinks[$idx]
+        $script:txtLinkText.Text   = $l.Text
+        $script:txtLinkUrl.Text    = $l.Url
+        $script:editingLinkIndex   = $idx
+        $script:btnAddLink.Content = "Update Link"
+    })
+
+    $script:btnAddLink.Add_Click({
+      try {
+        $text = $script:txtLinkText.Text.Trim()
+        $url  = $script:txtLinkUrl.Text.Trim()
+
+        if (-not $text) {
+            [System.Windows.MessageBox]::Show(
+                "Display Text is required.",
+                "Missing field",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning) | Out-Null
+            return
+        }
+        if (-not $url) {
+            [System.Windows.MessageBox]::Show(
+                "URL is required.",
+                "Missing field",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning) | Out-Null
+            return
+        }
+        if (-not (Test-StreamUrl -Url $url)) {
+            [System.Windows.MessageBox]::Show(
+                "That does not look like a valid URL.`nExpected something like:`nhttps://www.twitch.tv/yourname",
+                "Invalid URL",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning) | Out-Null
+            return
+        }
+
+        if ($script:editingLinkIndex -ge 0 -and $script:editingLinkIndex -lt $script:workingLinks.Count) {
+            # Update existing entry in place.
+            $script:workingLinks[$script:editingLinkIndex] = [PSCustomObject]@{ Text = $text; Url = $url }
+        } else {
+            # Append new entry.
+            $script:workingLinks += [PSCustomObject]@{ Text = $text; Url = $url }
+        }
+
+        & $script:saveWorkingLinks
+        & $script:clearLinkForm
+        & $script:refreshLinksList
+      }
+      catch {
+        $line = if ($_.InvocationInfo) { $_.InvocationInfo.ScriptLineNumber } else { "?" }
+        [System.Windows.MessageBox]::Show(
+            "Unexpected error while saving the link:`n`n$($_.Exception.Message)`n`nLine $line",
+            "Save Failed",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Error) | Out-Null
+      }
+    })
+
+    $script:btnClearLinkForm.Add_Click({ & $script:clearLinkForm })
+
+    $script:btnDeleteLink.Add_Click({
+        $idx = $script:lstLinks.SelectedIndex
+        if ($idx -lt 0 -or $idx -ge $script:workingLinks.Count) {
+            [System.Windows.MessageBox]::Show(
+                "Select a link from the list first.",
+                "Nothing selected",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Information) | Out-Null
+            return
+        }
+        $target = $script:workingLinks[$idx]
+        $confirm = [System.Windows.MessageBox]::Show(
+            "Delete link '$($target.Text)'?",
+            "Confirm Delete",
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Question)
+        if ($confirm -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
+        # Rebuild the array without the removed item.
+        $rebuilt = @()
+        for ($i = 0; $i -lt $script:workingLinks.Count; $i++) {
+            if ($i -ne $idx) { $rebuilt += $script:workingLinks[$i] }
+        }
+        $script:workingLinks = $rebuilt
+
+        & $script:saveWorkingLinks
+        & $script:clearLinkForm
+        & $script:refreshLinksList
+    })
+
+    $script:btnMoveUp.Add_Click({
+        $idx = $script:lstLinks.SelectedIndex
+        if ($idx -le 0 -or $idx -ge $script:workingLinks.Count) { return }
+        $tmp = $script:workingLinks[$idx - 1]
+        $script:workingLinks[$idx - 1] = $script:workingLinks[$idx]
+        $script:workingLinks[$idx]     = $tmp
+        & $script:saveWorkingLinks
+        & $script:refreshLinksList
+        $script:lstLinks.SelectedIndex = $idx - 1
+    })
+
+    $script:btnMoveDown.Add_Click({
+        $idx = $script:lstLinks.SelectedIndex
+        if ($idx -lt 0 -or $idx -ge ($script:workingLinks.Count - 1)) { return }
+        $tmp = $script:workingLinks[$idx + 1]
+        $script:workingLinks[$idx + 1] = $script:workingLinks[$idx]
+        $script:workingLinks[$idx]     = $tmp
+        & $script:saveWorkingLinks
+        & $script:refreshLinksList
+        $script:lstLinks.SelectedIndex = $idx + 1
+    })
+
+    $script:btnBackLinks.Add_Click({
+        # Persist any pending header changes before closing.
+        & $script:saveWorkingLinks
+        $script:linksWin.Close()
+    })
+
+    $script:linksWin.Add_KeyDown({
+        param($s, $e)
+        if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+            & $script:saveWorkingLinks
+            $script:linksWin.Close()
+        }
+    })
+
+    $script:linksWin.ShowDialog() | Out-Null
+}
+
+# ===================================================================
 #  Main window
 # ===================================================================
 
@@ -554,8 +864,10 @@ $mainXaml = @"
         </Border>
 
         <Grid Grid.Row="6">
-            <Button x:Name="btnChannels" Content="Channels" Width="100"
-                    HorizontalAlignment="Left" Background="#3a3a3a"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button x:Name="btnChannels" Content="Channels" Width="100" Background="#3a3a3a"/>
+                <Button x:Name="btnLinks"    Content="Links"    Width="80"  Background="#3a3a3a" Margin="8,0,0,0"/>
+            </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="btnCancel" Content="Cancel"
                         Width="80" Margin="0,0,10,0" Background="#3a3a3a"/>
@@ -574,6 +886,7 @@ $script:txtCustom   = $script:mainWin.FindName("txtCustom")
 $script:chkCSV      = $script:mainWin.FindName("chkCSV")
 $script:channelList = $script:mainWin.FindName("channelList")
 $script:btnChannels = $script:mainWin.FindName("btnChannels")
+$script:btnLinks    = $script:mainWin.FindName("btnLinks")
 $script:btnCancel   = $script:mainWin.FindName("btnCancel")
 $script:btnOK       = $script:mainWin.FindName("btnOK")
 
@@ -680,6 +993,10 @@ $script:btnChannels.Add_Click({
     & $script:refreshChannelCheckboxes
 })
 
+$script:btnLinks.Add_Click({
+    Show-LinksWindow
+})
+
 $script:btnCancel.Add_Click({ $script:mainWin.Close() })
 $script:btnOK.Add_Click({ & $script:doGoLive })
 
@@ -736,6 +1053,9 @@ if ($script:dialogResult.IncludeCSV) {
     }
 }
 
+# Load the links block once for this send.
+$linksBlock = Format-LinksBlock (Get-Links)
+
 foreach ($channel in $script:dialogResult.Channels) {
 
     $lines = @()
@@ -760,11 +1080,10 @@ foreach ($channel in $script:dialogResult.Channels) {
         $allowedRoles = @($channel.RoleId)
     }
 
-    $textContent = @"
-$rolePing$messageBody
-
-$linksBlock
-"@
+    $textContent = "$rolePing$messageBody"
+    if ($linksBlock) {
+        $textContent = "$textContent`n`n$linksBlock"
+    }
 
     $result = Send-DiscordWebhookMessage -WebhookUrl $channel.WebhookUrl `
                                          -Content $textContent `

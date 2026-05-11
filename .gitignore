@@ -2,6 +2,10 @@
 channels.json
 channels.json.tmp
 
+# Personal links (each user has their own)
+links.json
+links.json.tmp
+
 # Temp files
 *.tmp
 *.log

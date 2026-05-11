@@ -22,6 +22,10 @@ function Get-ShadCsvPath {
     return (Join-Path $PSScriptRoot "Actionable_Stream_Notification_Messages.csv")
 }
 
+function Get-LdnLinksPath {
+    return (Join-Path $PSScriptRoot "links.json")
+}
+
 function Get-LdnLogPath {
     return (Join-Path $PSScriptRoot "livediscord.log")
 }
@@ -83,6 +87,18 @@ function Test-DiscordRoleId {
     param([string]$RoleId)
     if (-not $RoleId) { return $true }
     return ($RoleId -match '^\d+$')
+}
+
+function Test-StreamUrl {
+    <#
+        Returns $true if $Url is a syntactically valid http:// or https:// URL.
+        Used for the Links UI to sanity-check what the user enters.
+    #>
+    param([string]$Url)
+    if (-not $Url) { return $false }
+    $parsed = $null
+    if (-not [uri]::TryCreate($Url, [UriKind]::Absolute, [ref]$parsed)) { return $false }
+    return $parsed.Scheme -in @('http','https')
 }
 
 # --- BOM-less UTF-8 file I/O ---
@@ -307,4 +323,125 @@ function Send-DiscordWebhookMessage {
         }
         return @{ Success = $false; Error = $errMsg }
     }
+}
+
+# --- Links storage and rendering ---
+
+function Get-Links {
+    <#
+        Loads links.json. Returns a PSCustomObject with Header (string) and
+        Links (array of @{Text,Url}). Returns sensible defaults if the file
+        is missing, empty, or malformed (so callers do not need to null-check).
+    #>
+    $path = Get-LdnLinksPath
+
+    $default = [PSCustomObject]@{
+        Header = "Watch From:"
+        Links  = @()
+    }
+
+    if (-not (Test-Path $path)) { return $default }
+
+    try {
+        $raw = Read-LdnTextFile -Path $path
+    } catch {
+        Write-LdnLog "Get-Links: could not read $path - $($_.Exception.Message)"
+        return $default
+    }
+
+    if (-not $raw -or -not $raw.Trim()) { return $default }
+
+    try {
+        $data = $raw | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Write-LdnLog "Get-Links: JSON parse failed - $($_.Exception.Message)"
+        return $default
+    }
+
+    $header = if ($data.Header) { [string]$data.Header } else { "" }
+
+    $linksArray = @()
+    if ($data.Links) {
+        foreach ($entry in @($data.Links)) {
+            $text = if ($entry.Text) { [string]$entry.Text } else { "" }
+            $url  = if ($entry.Url)  { [string]$entry.Url  } else { "" }
+            if ($text -and $url) {
+                $linksArray += [PSCustomObject]@{ Text = $text; Url = $url }
+            }
+        }
+    }
+
+    return [PSCustomObject]@{
+        Header = $header
+        Links  = $linksArray
+    }
+}
+
+function Save-Links {
+    <#
+        Writes links.json atomically. Accepts an object with Header and Links
+        properties (matching Get-Links output).
+    #>
+    param([Parameter(Mandatory)]$LinksObject)
+
+    $path = Get-LdnLinksPath
+
+    $header = if ($LinksObject.Header) { [string]$LinksObject.Header } else { "" }
+
+    $cleaned = @()
+    if ($LinksObject.Links) {
+        foreach ($entry in @($LinksObject.Links)) {
+            if (-not $entry) { continue }
+            $text = if ($entry.Text) { [string]$entry.Text } else { "" }
+            $url  = if ($entry.Url)  { [string]$entry.Url  } else { "" }
+            if (-not $text -or -not $url) { continue }
+            $cleaned += [PSCustomObject]@{ Text = $text; Url = $url }
+        }
+    }
+
+    $output = [PSCustomObject]@{
+        Header = $header
+        Links  = @($cleaned)
+    }
+
+    $json = ConvertTo-Json -InputObject $output -Depth 4
+
+    $tempPath = "$path.tmp"
+    try {
+        Write-LdnTextFile -Path $tempPath -Content $json
+        Move-Item -Path $tempPath -Destination $path -Force -ErrorAction Stop
+    } catch {
+        if (Test-Path $tempPath) {
+            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+        }
+        Write-LdnLog "Save-Links: file write failed - $($_.Exception.Message)"
+        throw "Could not save links.json at '$path': $($_.Exception.Message)"
+    }
+}
+
+function Format-LinksBlock {
+    <#
+        Renders a links object to the Discord markdown block used in messages.
+        Format per line: [Text](<Url>)
+        Header (if present) goes on its own line above the links.
+        Returns an empty string if there are no links, so callers can omit
+        the block cleanly when nothing is configured.
+    #>
+    param($LinksObject)
+
+    if (-not $LinksObject) { return "" }
+
+    $links = @($LinksObject.Links)
+    if ($links.Count -eq 0) { return "" }
+
+    $lines = @()
+    if ($LinksObject.Header) {
+        $lines += [string]$LinksObject.Header
+    }
+    foreach ($link in $links) {
+        if (-not $link.Text -or -not $link.Url) { continue }
+        $lines += "[$($link.Text)](<$($link.Url)>)"
+    }
+
+    return ($lines -join "`n")
 }

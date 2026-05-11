@@ -1,0 +1,21 @@
+{
+    "Header": "Watch From:",
+    "Links": [
+        {
+            "Text": "Twitch",
+            "Url": "https://www.twitch.tv/YOUR_USERNAME"
+        },
+        {
+            "Text": "YouTube",
+            "Url": "https://www.youtube.com/@YOUR_USERNAME"
+        },
+        {
+            "Text": "Kick",
+            "Url": "https://kick.com/YOUR_USERNAME"
+        },
+        {
+            "Text": "TikTok",
+            "Url": "https://www.tiktok.com/@YOUR_USERNAME/live"
+        }
+    ]
+}

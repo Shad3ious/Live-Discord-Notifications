@@ -15,17 +15,10 @@ try {
     exit 1
 }
 
-# -------------------------------------------------------------------
-# FIRST-TIME SETUP: Replace YOUR_USERNAME below with your actual handle
-# on each platform. Remove any lines for platforms you do not use.
-# -------------------------------------------------------------------
-$linksBlock = @"
-Watch From:
-[Twitch](<https://www.twitch.tv/YOUR_USERNAME>)
-[YouTube](<https://www.youtube.com/@YOUR_USERNAME>)
-[Kick](<https://kick.com/YOUR_USERNAME>)
-[TikTok](<https://www.tiktok.com/@YOUR_USERNAME/live>)
-"@
+# Links are managed via the Links button in LiveDiscordNotificationsCustom.ps1
+# and stored in links.json. If no links have been configured yet, messages
+# will be sent without a links block.
+$linksBlock = Format-LinksBlock (Get-Links)
 
 # --- Load channels ---
 try {
@@ -84,11 +77,10 @@ foreach ($channel in $channels) {
         $allowedRoles = @($channel.RoleId)
     }
 
-    $textContent = @"
-$rolePing$messageBody
-
-$linksBlock
-"@
+    $textContent = "$rolePing$messageBody"
+    if ($linksBlock) {
+        $textContent = "$textContent`n`n$linksBlock"
+    }
 
     $result = Send-DiscordWebhookMessage -WebhookUrl $channel.WebhookUrl `
                                          -Content $textContent `

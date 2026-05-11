@@ -8,6 +8,8 @@
 
 A Stream Deck friendly PowerShell tool that sends "going live" notifications to one or many Discord servers via webhooks. Random or custom messages, optional role pings, DPAPI-encrypted config.
 
+<!-- TODO: drop a screenshot.png in the repo root and uncomment the line below -->
+<!-- ![Screenshot of the main popup](screenshot.png) -->
 
 ## Why
 
@@ -19,13 +21,14 @@ This is a small PowerShell tool that runs from a Stream Deck button. One press a
 
 - **Multi-server support.** Configure as many Discord servers as you want. Each can have its own role ping or none at all.
 - **Two send modes:**
-  - `LiveDiscordNotifications.ps1` - Silent. Sends a random CSV message to every configured server. No popup.
-  - `LiveDiscordNotificationsCustom.ps1` - Popup UI. Type a custom message, toggle the random CSV message on/off, pick which servers to send to per-press.
+  - `LiveDiscordNotificationsCustom.bat` - Popup UI. Type a custom message, toggle the random CSV message on/off, pick which servers to send to per-press. **Start here for first-time setup.**
+  - `LiveDiscordNotifications.bat` - Silent. Sends a random CSV message to every configured server with no popup. Only works after you have configured at least one channel using the Custom version.
 - **Channel management UI.** Add, edit, delete, and test channels through a WPF interface. No editing config files by hand.
+- **Links management UI.** Configure the "Watch From" links block (Twitch, YouTube, etc.) through the UI, with drag-free reordering and a live preview. Saved links are shared between both send modes.
 - **Test send.** Verify a webhook works before saving it. Optional role ping toggle for tests (off by default).
 - **DPAPI encryption.** Webhook URLs are encrypted at rest, tied to your Windows user account.
 - **Atomic file writes.** Config saves cannot corrupt mid-write.
-- **Validation.** Webhook URL format check, role ID format check, duplicate name prevention.
+- **Validation.** Webhook URL format check, role ID format check, URL format check, duplicate name prevention.
 - **Keyboard shortcuts.** Ctrl+Enter to send, Esc to cancel.
 - **Stream Deck friendly.** Launches from a Stream Deck button via a .bat or .lnk wrapper.
 
@@ -46,7 +49,8 @@ This is a small PowerShell tool that runs from a Stream Deck button. One press a
    - `LiveDiscordNotifications.bat`
    - `LiveDiscordNotificationsCustom.bat`
    - `Actionable_Stream_Notification_Messages.csv`
-3. Open `LiveDiscordNotifications.ps1` and `LiveDiscordNotificationsCustom.ps1` in a text editor. Near the top, you'll find a `$linksBlock` section with `YOUR_USERNAME` placeholders. Replace each `YOUR_USERNAME` with your actual handle on that platform (Twitch, YouTube, Kick, TikTok, or whatever platforms you use). Remove any lines for platforms you don't use. Save.
+
+That's the whole install. No code editing required - everything is configured through the UI on first run.
 
 ## First-run setup
 
@@ -81,17 +85,31 @@ This is a small PowerShell tool that runs from a Stream Deck button. One press a
    - Click `Test` first (with or without the "With role ping" checkbox) to verify the webhook works.
    - If the test succeeds, click `Add Channel`.
 6. Repeat for each server. Click `Back` when done.
-7. Your channels now appear with checkboxes on the main popup. Type a custom message (optional), toggle the CSV randomizer, pick which servers to send to, and click `Go Live!`.
+7. Click `Links` to open the Links management window. This is where you set the streaming links that get appended to every notification.
+   - **Header text (optional)** - the line that appears above your links, e.g. `Watch From:`. Leave blank to omit.
+   - For each platform you stream on:
+     - **Display Text** - what shows in Discord, e.g. `Twitch`.
+     - **URL** - the full URL, e.g. `https://www.twitch.tv/yourname`.
+     - Click `Add Link`. Repeat for each platform.
+   - Use `Move Up` and `Move Down` to reorder the list. The preview at the bottom shows exactly what Discord will render.
+   - Click `Back` when done.
+8. Your channels now appear with checkboxes on the main popup. Type a custom message (optional), toggle the CSV randomizer, pick which servers to send to, and click `Go Live!`.
 
 ## Stream Deck setup
 
 The Stream Deck app has a known issue launching `.bat` files directly through its "Open" action - the button sometimes does nothing. The workaround is a Windows shortcut.
 
-1. In File Explorer, right-click `LiveDiscordNotificationsCustom.bat` (or `LiveDiscordNotifications.bat`) and choose **Create shortcut**. You'll get a `.lnk` file in the same folder.
+**Important: run `LiveDiscordNotificationsCustom.bat` at least once and add your channels before setting up the silent button.** The silent `LiveDiscordNotifications.bat` reads from the channel config that the Custom version creates. If no channels are configured yet, the silent button will do nothing.
+
+To set up either button:
+
+1. In File Explorer, right-click the `.bat` file and choose **Create shortcut**. You'll get a `.lnk` file in the same folder.
 2. In the Stream Deck app, drag a **System -> Open** action onto a button.
 3. Set the **App / File** field to the `.lnk` you just created.
 4. Give the button a title (e.g., `GO LIVE`) and an icon.
 5. Press the button to test.
+
+Most setups use two buttons: one for the popup (custom message, channel selection) and one for the silent broadcast (one press, no interaction needed). Set up and test the popup button first, then add the silent button once your channels are confirmed working.
 
 ## Editing the message pool
 
