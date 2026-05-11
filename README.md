@@ -101,15 +101,11 @@ The Stream Deck app's "System: Open" action can be unreliable with `.bat` files.
 1. In the Stream Deck app, drag a **System -> Open** action onto a button.
 2. Set the **App / File** field to:
    ```
-   C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
-   ```
-3. Set the **Title / Args** (or equivalent parameters field) to:
-   ```
-   -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "C:\Scripts\LiveDiscordNotifications\LiveDiscordNotificationsCustom.bat" -Quiet
+   C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "C:\Scripts\LiveDiscordNotifications\LiveDiscordNotificationsCustom.bat" -Quiet
    ```
    Adjust the path to wherever you installed the scripts. For the silent button, swap `LiveDiscordNotificationsCustom.bat` for `LiveDiscordNotifications.bat`.
-4. Give the button a title (e.g., `GO LIVE`) and an icon.
-5. Press the button to test.
+3. Give the button a title (e.g., `Discord Notify`) and an icon.
+4. Press the button to test.
 
 Most setups use two buttons: one for the popup (custom message, channel selection per-press) and one for the silent broadcast (one press, no interaction needed). Set up and test the popup button first, then add the silent button once your channels are confirmed working.
 
