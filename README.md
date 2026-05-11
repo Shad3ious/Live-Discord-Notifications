@@ -8,9 +8,6 @@
 
 A Stream Deck friendly PowerShell tool that sends "going live" notifications to one or many Discord servers via webhooks. Random or custom messages, optional role pings, DPAPI-encrypted config.
 
-<!-- TODO: drop a screenshot.png in the repo root and uncomment the line below -->
-<!-- ![Screenshot of the main popup](screenshot.png) -->
-
 ## Why
 
 If you stream on Twitch, YouTube, Kick, and TikTok at the same time, you probably announce your stream in a few different Discord servers. Doing it by hand every time you go live is annoying. Discord bots feel like overkill for a personal setup, and most of them want a bot token plus a hosted process running 24/7.
@@ -97,19 +94,24 @@ That's the whole install. No code editing required - everything is configured th
 
 ## Stream Deck setup
 
-The Stream Deck app has a known issue launching `.bat` files directly through its "Open" action - the button sometimes does nothing. The workaround is a Windows shortcut.
+**Important: run `LiveDiscordNotificationsCustom.bat` at least once and configure your channels and links before setting up the silent button.** The silent `LiveDiscordNotifications.bat` reads from the config that the Custom version creates. If nothing is configured yet, the silent button will do nothing.
 
-**Important: run `LiveDiscordNotificationsCustom.bat` at least once and add your channels before setting up the silent button.** The silent `LiveDiscordNotifications.bat` reads from the channel config that the Custom version creates. If no channels are configured yet, the silent button will do nothing.
+The Stream Deck app's "System: Open" action can be unreliable with `.bat` files. The solution that works reliably is pointing the button directly at PowerShell and passing the `.bat` file as the command:
 
-To set up either button:
-
-1. In File Explorer, right-click the `.bat` file and choose **Create shortcut**. You'll get a `.lnk` file in the same folder.
-2. In the Stream Deck app, drag a **System -> Open** action onto a button.
-3. Set the **App / File** field to the `.lnk` you just created.
+1. In the Stream Deck app, drag a **System -> Open** action onto a button.
+2. Set the **App / File** field to:
+   ```
+   C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+   ```
+3. Set the **Title / Args** (or equivalent parameters field) to:
+   ```
+   -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "C:\Scripts\LiveDiscordNotifications\LiveDiscordNotificationsCustom.bat" -Quiet
+   ```
+   Adjust the path to wherever you installed the scripts. For the silent button, swap `LiveDiscordNotificationsCustom.bat` for `LiveDiscordNotifications.bat`.
 4. Give the button a title (e.g., `GO LIVE`) and an icon.
 5. Press the button to test.
 
-Most setups use two buttons: one for the popup (custom message, channel selection) and one for the silent broadcast (one press, no interaction needed). Set up and test the popup button first, then add the silent button once your channels are confirmed working.
+Most setups use two buttons: one for the popup (custom message, channel selection per-press) and one for the silent broadcast (one press, no interaction needed). Set up and test the popup button first, then add the silent button once your channels are confirmed working.
 
 ## Editing the message pool
 
