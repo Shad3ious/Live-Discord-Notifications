@@ -156,16 +156,39 @@ function Get-Channels {
     if (-not $raw -or -not $raw.Trim()) { return @() }
 
     try {
-        $data = @($raw | ConvertFrom-Json -ErrorAction Stop)
+        $parsedJson = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
     } catch {
         Write-LdnLog "Get-Channels: JSON parse failed - $($_.Exception.Message)"
         throw "channels.json is corrupted (not valid JSON): $($_.Exception.Message)"
     }
 
+    # PS 5.1's ConvertFrom-Json sometimes emits an array as a single pipeline
+    # object instead of iterated elements. Using @($raw | ConvertFrom-Json) is
+    # therefore unreliable - it can produce @(@(obj1, obj2)) instead of
+    # @(obj1, obj2). Iterate explicitly to build a proper flat array.
+    $data = @()
+    if ($null -ne $parsedJson) {
+        if ($parsedJson -is [System.Array] -or $parsedJson -is [System.Collections.IList]) {
+            foreach ($item in $parsedJson) { $data += $item }
+        } else {
+            $data += $parsedJson
+        }
+    }
+    Write-LdnLog "Get-Channels: parsed $($data.Count) entry/entries from JSON"
+
     $needsMigration = $false
     $result = @()
 
     foreach ($entry in $data) {
+        # Defensive: if Name comes back as an array, this entry is malformed
+        # (either old corruption from the PS 5.1 ConvertTo-Json bug, or a
+        # parsing oddity). Skip it cleanly rather than silently producing a
+        # space-joined merged channel name.
+        if ($entry.Name -is [System.Array] -or $entry.Name -is [System.Collections.IList]) {
+            Write-LdnLog "Get-Channels: skipping malformed entry with array Name (likely corrupted by old PS 5.1 ConvertTo-Json bug)"
+            continue
+        }
+
         # Use direct property access. PSObject.Properties['x'] indexer returns
         # falsy in some PS 5.1 builds even when the property exists, so read
         # the value directly and check it instead.
@@ -231,6 +254,7 @@ function Save-Channels {
     param([Parameter(Mandatory)][AllowEmptyCollection()][array]$Channels)
 
     $path = Get-ShadConfigPath
+    Write-LdnLog "Save-Channels: called with $($Channels.Count) channel(s)"
 
     $output = @()
     foreach ($ch in $Channels) {
@@ -261,13 +285,20 @@ function Save-Channels {
     if ($output.Count -eq 0) {
         $json = "[]"
     } else {
-        # Force array context. ConvertTo-Json in PS 5.1 sometimes drops the
-        # array wrapper for single-item arrays.
-        $json = ConvertTo-Json -InputObject @($output) -Depth 4
-        if (-not $json -or $json.TrimStart()[0] -ne '[') {
-            $json = "[$json]"
+        # PS 5.1 ConvertTo-Json -InputObject on a multi-item array sometimes
+        # uses "member enumeration" - producing one object with each property
+        # as an array of values - instead of an array of objects. That's how
+        # two channels' Name fields got merged into "Test SOOOOOO".
+        # Workaround: serialize each item individually and join into an array
+        # manually. This bypasses the broken array handling entirely.
+        $itemJsons = @()
+        foreach ($item in $output) {
+            $itemJsons += (ConvertTo-Json -InputObject $item -Depth 4)
         }
+        $json = "[" + ($itemJsons -join ",") + "]"
     }
+
+    Write-LdnLog "Save-Channels: json length=$($json.Length), preview='$($json.Substring(0, [Math]::Min($json.Length, 80)) -replace "`n", '\n' -replace "`r", '\r')'"
 
     $tempPath = "$path.tmp"
     try {
